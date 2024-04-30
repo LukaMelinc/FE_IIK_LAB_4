@@ -22,3 +22,6 @@ vse enaka 0. Primerjajte povprečne velikosti datotek med zapisi BMP, PNG in QOI
 link do QOIF frontpaga - https://qoiformat.org/
 
 link do QOIF specifikacije - https://qoiformat.org/qoi-specification.pdf
+
+A to gleda lahko sam zaporedne piksle levo desno, ne pa gor dol? a se da to kako bljš nardit, al je to tko zato,
+da je hitro
