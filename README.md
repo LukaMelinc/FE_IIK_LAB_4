@@ -1,0 +1,1 @@
+This is a project that uses the QOIF (Quite OK Image format) for image compression.  
