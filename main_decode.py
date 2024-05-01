@@ -25,22 +25,22 @@ def decode_QOI(encoded_bytes):
         byte = encoded_bytes[pos]
         pos += 1
 
-        if byte == 0b11111110:  # RGB, bytes are represented directly
+        if byte == 0b11111110:  # RGB, bytes are represented directly -> QOI_OP_RGB
             r, g, b = encoded_bytes[pos:pos+3]
             pixel = (r, g, b, 255) if channels == 4 else (r,g,b)
             pos += 3
-        elif byte == 0b11111111:    # RGBA, bytes are represented directly
+        elif byte == 0b11111111:    # RGBA, bytes are represented directly -> QOI_OP_RGBA
             r, g, b, a = encoded_bytes[pos:pos+4]
             pixel = (r, g, b, a)
             pos += 4
-        elif byte >> 6 == 0:
+        elif byte >> 6 == 0:    # če sta MSB bajta 0 -> QOI_OP_INDEX, biti so povejo barvo
             pixel = index[byte]
-        elif byte >> 6 == 1:
+        elif byte >> 6 == 1:    # MSB bajta sta 1 -> QOI_OP_DIFF, mala razlika
             r += ((byte >> 4) & 0x03) - 2
             g += ((byte >> 2) & 0x03) - 2
             b += (byte & 0x03) - 2
             pixel = (r, g, b, a)
-        elif byte >> 6 == 2:
+        elif byte >> 6 == 2:    # MSB bajta sta 2 -> QOI_OP_LUMA, večja razlika
             dg = (byte & 0x3F) - 32
             dr = dg + (encoded_bytes[pos] >> 4) - 8
             db = dg + (encoded_bytes[pos] & 0x0F) - 8
@@ -49,12 +49,12 @@ def decode_QOI(encoded_bytes):
             b += db
             pixel = (r, g, b, a)
             pos += 1
-        elif byte >> 6 == 3:  # QOI_OP_RUN
-            length = (byte & 0x3F) + 1
+        elif byte >> 6 == 3:  # MSB bajta sta 3 -> QOI_OP_RUN
+            length = (byte & 0x3F) + 1  # pove, kolikokrat se more ta piksel ponovit
             pixels.extend([pixel] * length)
             continue
-        pixels.append(pixel)
-        index[index_pos(pixel)] = pixel
+        pixels.append(pixel)                    #appendamo pixel pixellistu in
+        index[index_pos(pixel)] = pixel         # pixel dodamo v idex table
 
     return pixels, width, height, 'RGBA' if channels == 4 else 'RGB'
 
