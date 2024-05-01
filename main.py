@@ -1,4 +1,5 @@
-import PIL as Image
+import PIL as PIL
+from PIL import Image
 
 class QOIEncoder:
     def __init__(self, data, width, height, channels):
@@ -49,9 +50,8 @@ def open_image(file_path):
     return img
 
 def process_image(file_path, output_path):
-    with open(f"kodim14.png", "rb") as f:
-        img = f.read()
-    
+    """Process an image file to QOI format and save it."""
+    img = open_image(file_path)
     if img is not None:
         data = list(img.getdata())
         flat_data = [channel for pixel in data for channel in pixel]  # Flatten the list of tuples
@@ -60,6 +60,6 @@ def process_image(file_path, output_path):
         encoder.save_to_file(output_path)
 
 
-process_image("/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije in Kodi/LAB/Projekt/archive/kodim01.png", "/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije in Kodi/LAB/Projekt")
+process_image("/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/archive/kodim01.png", "/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim14copy.png")
 
    
