@@ -25,18 +25,30 @@ class QOIEncoder:
         self.encoded.extend(self.channels.to_bytes(1, 'big'))   # converts the number of channels in the image into a single byte and appends it
         self.encoded.extend(b'\x00')    # appends the byte for the colour space, 0x00 represents default RGB space 
 
-        previous_pixels = [0] * self.channels
+        previous_pixel = [0, 0, 0, 255] if self.channels == 4 else [0, 0, 0]
+        run_length = 0
 
         for i in range(0, len(self.data), self.channels):
             pixel = self.data[i:i + self.channels]
-            if pixel == previous_pixels:
-                self.encoded.append(0b11000000) # QOI command for a repeated pixel
+            if pixel == previous_pixel:
+                run_length += 1
+                if run_length == 62:  # Max run length for QOI_OP_RUN
+                    self.encoded.append(0b11000000 | (run_length - 1))
+                    run_length = 0
             else:
-                self.encoded.extend(pixel)  # raw data si directly appended to self.encoded bytearray
-            previous_pixels = pixel
+                if run_length > 0:
+                    self.encoded.append(0b11000000 | (run_length - 1))
+                    run_length = 0
 
-        self.encoded.append(0b00000000)     # signalises the end of datastream
-        return self.encoded
+                if self.channels == 4:
+                    self.encoded.extend([0b11111110] + pixel)  # QOI_OP_RGBA
+                else:
+                    self.encoded.extend([0b11111110] + pixel[:3])  # QOI_OP_RGB
+
+            previous_pixel = pixel
+        if run_length > 0:
+            self.encoded.append(0b11000000 | (run_length - 1))
+
     
     def save_to_file(self, file_path):
         with open(file_path, "wb") as file:
@@ -59,7 +71,8 @@ def process_image(file_path, output_path):
         encoded_image = encoder.encode()
         encoder.save_to_file(output_path)
 
-
-process_image("/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/archive/kodim01.png", "/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim14copy.png")
+input_path = "/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/archive/kodim01.png"
+output_path = "/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/test.png"
+process_image(input_path, output_path)
 
    
