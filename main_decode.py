@@ -13,12 +13,6 @@ def decode_QOI(encoded_bytes):
     magic, width, height, channels, colorspace = struct.unpack('>4sII2B', encoded_bytes[:14])
     assert magic == b'qoif', "Invalid QOI file."
 
-    QOI_OP_RUN = 0b11000000
-    QOI_OP_INDEX = 0b00000000
-    QOI_OP_DIFF = 0b01000000
-    QOI_OP_LUMA = 0b10000000
-    QOI_OP_RGB = 0b11111110
-    QOI_OP_RGBA = 0b11111111
 
     QOI_op_maska = 0b11000000  # maska za ukaz
     QOI_op_data = 0b00111111  # maska za podatke
@@ -42,7 +36,7 @@ def decode_QOI(encoded_bytes):
         byte = buffer[i]
 
         # QOI_OP_RGB #
-        if byte == QOI_OP_RGB:
+        if byte == 0b11111110:
             px[0] = buffer[i + 1]
             px[1] = buffer[i + 2]
             px[2] = buffer[i + 3]
@@ -50,7 +44,7 @@ def decode_QOI(encoded_bytes):
             i += 4
 
         # QOI_OP_RGBA #
-        elif byte == QOI_OP_RGBA:
+        elif byte == 0b11111111:
             px[0] = buffer[i + 1]
             px[1] = buffer[i + 2]
             px[2] = buffer[i + 3]
@@ -59,14 +53,14 @@ def decode_QOI(encoded_bytes):
             i += 5
 
         # QOI_OP_INDEX #
-        elif (QOI_op_maska & byte) == QOI_OP_INDEX:
+        elif (QOI_op_maska & byte) == 0b00000000:
             index = (byte & QOI_op_data)
             px = array[index]
             bufferEnd.extend(px[:channels])
             i += 1
 
         # QOI_OP_DIFF #
-        elif (QOI_op_maska & byte) == QOI_OP_DIFF:
+        elif (QOI_op_maska & byte) == 0b01000000:
             data = (byte & QOI_op_data)
             dr = ((data & QOI_df_red) >> 4) - 2
             dg = ((data & QOI_df_green) >> 2) - 2
@@ -78,7 +72,7 @@ def decode_QOI(encoded_bytes):
             i += 1
 
         # QOI_OP_LUMA #
-        elif (QOI_op_maska & byte) == QOI_OP_LUMA:
+        elif (QOI_op_maska & byte) == 0b10000000:
             byte2 = buffer[i + 1]
             dg = (byte & QOI_luma_dg) - 32  # bias
             drdg = ((byte2 & QOI_luma_rg) >> 4) - 8
@@ -94,7 +88,7 @@ def decode_QOI(encoded_bytes):
             i += 2
 
         # QOI_OP_RUN #
-        elif (QOI_op_maska & byte) == QOI_OP_RUN:
+        elif (QOI_op_maska & byte) == 0b11000000:
             run = (byte & QOI_op_data) + 1  # bias
             for j in range(run):
                 bufferEnd.extend(px[:channels])
@@ -117,7 +111,7 @@ def save_as_png(bufferEnd, width, height, mode, output):
 
 
 # Use the provided QOI image for testing
-with open('/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/qoi_test_images_2/kodim10.qoi', "rb") as file:
+with open('/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/qoi_test_images_2/kodim23.qoi', "rb") as file:
     encoded_data = file.read()
 
 # Decode the image
