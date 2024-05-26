@@ -1,40 +1,31 @@
 from PIL import Image
 
-def qoiHeader(width, height, mode):
+def create_qoi_header(width, height, mode):
     magic = b'qoif'
+    channels = 3 if mode == 'RGB' else 4
+    colorspace = 1
+    return (magic + 
+            width.to_bytes(4, 'big') + 
+            height.to_bytes(4, 'big') + 
+            channels.to_bytes(1, 'big') + 
+            colorspace.to_bytes(1, 'big'))
 
-    # Width, Height - each 4 bytes (8 bytes)
-    # Channels, Colorspace - each 1 byte (2 bytes)
-    if mode == 'RGB':
-        channels = 3
-        colorspace = 1
-    elif mode == 'RGBA':
-        channels = 4
-        colorspace = 1
-
-    header = magic + int(width).to_bytes(4, 'big') + int(height).to_bytes(4, 'big') + channels.to_bytes(1, 'big') + colorspace.to_bytes(1, 'big')
-    return header
-
-def qoiHash(pixel):
+def qoi_pixel_hash(pixel):
     return (pixel[0] * 3 + pixel[1] * 5 + pixel[2] * 7 + pixel[3] * 11) % 64
 
 def encode_qoi(image_path, output_path):
-    # Load image
     image = Image.open(image_path)
     width, height = image.size
     mode = image.mode
     pixels = list(image.getdata())
 
-    # Prepare header and end marker
-    qoi_header = qoiHeader(width, height, mode)
+    qoi_header = create_qoi_header(width, height, mode)
     qoi_end_marker = b'\x00\x00\x00\x00\x00\x00\x00\x01'
 
-    array = [[0, 0, 0, 0]] * 64
-    pxOld = [0, 0, 0, 255]
+    color_index_array = [[0, 0, 0, 0]] * 64
+    previous_pixel = [0, 0, 0, 255]
     run_length = 0
-    pixelEncoded = bytearray()
-    pixel_count = len(pixels)
-
+    encoded_pixels = bytearray()
 
     QOI_OP_RUN = 0b11000000
     QOI_OP_INDEX = 0b00000000
@@ -43,58 +34,53 @@ def encode_qoi(image_path, output_path):
     QOI_OP_RGB = 0b11111110
     QOI_OP_RGBA = 0b11111111
 
-    # Encoding
-    for i in range(pixel_count):
-        px = list(pixels[i])
-        if mode == 'RGB':
-            px.append(255)
+    for i, pixel in enumerate(pixels):
+        pixel = list(pixel) + [255] if mode == 'RGB' else list(pixel)
 
-        if px == pxOld:
+        if pixel == previous_pixel:
             run_length += 1
-            if run_length == 62 or i == (pixel_count - 1):
-                pixelEncoded.append(QOI_OP_RUN | (run_length - 1))
+            if run_length == 62 or i == len(pixels) - 1:
+                encoded_pixels.append(QOI_OP_RUN | (run_length - 1))
                 run_length = 0
         else:
             if run_length > 0:
-                pixelEncoded.append(QOI_OP_RUN | (run_length - 1))
+                encoded_pixels.append(QOI_OP_RUN | (run_length - 1))
                 run_length = 0
 
-            index_pos = qoiHash(px)
+            index_pos = qoi_pixel_hash(pixel)
 
-            if array[index_pos] == px:
-                pixelEncoded.append(QOI_OP_INDEX | index_pos)
+            if color_index_array[index_pos] == pixel:
+                encoded_pixels.append(QOI_OP_INDEX | index_pos)
             else:
-                array[index_pos] = px
-                vr = px[0] - pxOld[0]
-                vg = px[1] - pxOld[1]
-                vb = px[2] - pxOld[2]
-                va = px[3] - pxOld[3]
-                vr_vg = vr - vg
-                vb_vg = vb - vg
+                color_index_array[index_pos] = pixel
+                red_diff = pixel[0] - previous_pixel[0]
+                green_diff = pixel[1] - previous_pixel[1]
+                blue_diff = pixel[2] - previous_pixel[2]
+                alpha_diff = pixel[3] - previous_pixel[3]
+                red_green_diff = red_diff - green_diff
+                blue_green_diff = blue_diff - green_diff
 
-                if -2 <= vr <= 1 and -2 <= vg <= 1 and -2 <= vb <= 1 and va == 0:
-                    pixelEncoded.append(QOI_OP_DIFF | ((vr + 2) << 4) | ((vg + 2) << 2) | (vb + 2))
-                elif -32 <= vg <= 31 and -8 <= vr_vg <= 7 and -8 <= vb_vg <= 7 and va == 0:
-                    pixelEncoded.append(QOI_OP_LUMA | (vg + 32))
-                    pixelEncoded.append(((vr_vg + 8) << 4) | (vb_vg + 8))
+                if all(-2 <= d <= 1 for d in [red_diff, green_diff, blue_diff]) and alpha_diff == 0:
+                    encoded_pixels.append(QOI_OP_DIFF | ((red_diff + 2) << 4) | ((green_diff + 2) << 2) | (blue_diff + 2))
+                elif -32 <= green_diff <= 31 and all(-8 <= d <= 7 for d in [red_green_diff, blue_green_diff]) and alpha_diff == 0:
+                    encoded_pixels.append(QOI_OP_LUMA | (green_diff + 32))
+                    encoded_pixels.append(((red_green_diff + 8) << 4) | (blue_green_diff + 8))
                 else:
-                    if va == 0:
-                        pixelEncoded.append(QOI_OP_RGB)
-                        pixelEncoded.extend(px[:3])
+                    if alpha_diff == 0:
+                        encoded_pixels.append(QOI_OP_RGB)
+                        encoded_pixels.extend(pixel[:3])
                     else:
-                        pixelEncoded.append(QOI_OP_RGBA)
-                        pixelEncoded.extend(px)
+                        encoded_pixels.append(QOI_OP_RGBA)
+                        encoded_pixels.extend(pixel)
 
-        pxOld = px
+        previous_pixel = pixel
 
-    # Combine header, encoded pixels, and end marker
-    qoi_output = qoi_header + pixelEncoded + qoi_end_marker
+    qoi_output = qoi_header + encoded_pixels + qoi_end_marker
 
-    # Save to file
     with open(output_path, 'wb') as file:
         file.write(qoi_output)
 
-
+# Example usage
 input_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/dice.png'
-output_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/dice_moje.qoi'
+output_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/dice.qoi'
 encode_qoi(input_path, output_path)
