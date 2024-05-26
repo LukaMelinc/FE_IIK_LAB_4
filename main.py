@@ -1,14 +1,6 @@
-###########################################################
-######## Title: IIK - projekt 7                    ########
-######## Author: Tilen Tinta                       ########
-######## Program: BMS 1, Avtomatika in Informatika ########
-######## Date: May, 2024                           ########
-###########################################################
-
 from PIL import Image
 
 def qoiHeader(width, height, mode):
-    # Magic - first 4 bytes
     magic = b'qoif'
 
     # Width, Height - each 4 bytes (8 bytes)
@@ -43,7 +35,7 @@ def encode_qoi(image_path, output_path):
     pixelEncoded = bytearray()
     pixel_count = len(pixels)
 
-    # Operation codes
+
     QOI_OP_RUN = 0b11000000
     QOI_OP_INDEX = 0b00000000
     QOI_OP_DIFF = 0b01000000
@@ -102,7 +94,7 @@ def encode_qoi(image_path, output_path):
     with open(output_path, 'wb') as file:
         file.write(qoi_output)
 
-if __name__ == "__main__":
-    input_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim23.png'
-    output_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim23_moje.qoi'
-    encode_qoi(input_path, output_path)
+
+input_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/dice.png'
+output_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/dice_moje.qoi'
+encode_qoi(input_path, output_path)

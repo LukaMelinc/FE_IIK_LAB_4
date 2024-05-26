@@ -3,28 +3,26 @@ import struct
 import numpy as np
 
 
-def qoiHash(pixel):
-    # Hash je ostanek
+def Hash(pixel):
     return (pixel[0] * 3 + pixel[1] * 5 + pixel[2] * 7 + pixel[3] * 11) % 64
 
 
 def decode_QOI(encoded_bytes):
-    # Unpack the header
     magic, width, height, channels, colorspace = struct.unpack('>4sII2B', encoded_bytes[:14])
     assert magic == b'qoif', "Invalid QOI file."
 
 
-    QOI_op_maska = 0b11000000  # maska za ukaz
-    QOI_op_data = 0b00111111  # maska za podatke
-    QOI_df_red = 0b00110000  # maska za razliko rdeče
-    QOI_df_green = 0b00001100  # maska za razliko zelene
-    QOI_df_blue = 0b00000011  # maska za razliko modre
-    QOI_luma_dg = 0b00111111  # maska za luma zeleno
-    QOI_luma_rg = 0b11110000  # maska za luma rdečo
-    QOI_luma_bg = 0b00001111  # maska za luma modro
+    QOI_op_maska = 0b11000000  
+    QOI_op_data = 0b00111111  
+    QOI_df_red = 0b00110000  
+    QOI_df_green = 0b00001100  
+    QOI_df_blue = 0b00000011  
+    QOI_luma_dg = 0b00111111  
+    QOI_luma_rg = 0b11110000  
+    QOI_luma_bg = 0b00001111  
 
     qoi_end_marker = b'\x00\x00\x00\x00\x00\x00\x00\x01'
-    buffer = encoded_bytes[14:(len(encoded_bytes) - len(qoi_end_marker))]  # buffer pixlov brez headerja in konca
+    buffer = encoded_bytes[14:(len(encoded_bytes) - len(qoi_end_marker))]  
 
     array = [[0, 0, 0, 255]] * 64
     px = [0, 0, 0, 255]
@@ -71,7 +69,7 @@ def decode_QOI(encoded_bytes):
             bufferEnd.extend(px[:channels])
             i += 1
 
-        # QOI_OP_LUMA #
+  
         elif (QOI_op_maska & byte) == 0b10000000:
             byte2 = buffer[i + 1]
             dg = (byte & QOI_luma_dg) - 32  # bias
@@ -87,14 +85,14 @@ def decode_QOI(encoded_bytes):
             bufferEnd.extend(px[:channels])
             i += 2
 
-        # QOI_OP_RUN #
+   
         elif (QOI_op_maska & byte) == 0b11000000:
             run = (byte & QOI_op_data) + 1  # bias
             for j in range(run):
                 bufferEnd.extend(px[:channels])
             i += 1
 
-        array[qoiHash(px)] = px[:]
+        array[Hash(px)] = px[:]
 
     return bufferEnd, width, height, 'RGBA' if channels == 4 else 'RGB'
 
@@ -111,7 +109,7 @@ def save_as_png(bufferEnd, width, height, mode, output):
 
 
 # Use the provided QOI image for testing
-with open('/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim23_moje.qoi', "rb") as file:
+with open('/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/dice_moje.qoi', "rb") as file:
     encoded_data = file.read()
 
 # Decode the image

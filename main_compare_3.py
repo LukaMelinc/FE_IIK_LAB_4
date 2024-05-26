@@ -6,7 +6,8 @@ def calculate_mse(image1_path, image2_path):
 
     image1 = Image.open(image1_path).convert('RGB')
     image2 = Image.open(image2_path).convert('RGB')
-    
+    print(image1.size)
+    print(image2.size)    
 
     if image1.size != image2.size:
         raise ValueError("Slike morajo biti enake velikosti")
@@ -21,7 +22,7 @@ def calculate_mse(image1_path, image2_path):
     return mse
 
 
-image1_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim23.png'
+image1_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/dice.png'
 image2_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/test.png'
 
 mse_value = calculate_mse(image1_path, image2_path)
