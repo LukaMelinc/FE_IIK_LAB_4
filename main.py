@@ -1,78 +1,108 @@
-import PIL as PIL
+###########################################################
+######## Title: IIK - projekt 7                    ########
+######## Author: Tilen Tinta                       ########
+######## Program: BMS 1, Avtomatika in Informatika ########
+######## Date: May, 2024                           ########
+###########################################################
+
 from PIL import Image
 
-class QOIEncoder:
-    def __init__(self, data, width, height, channels):
-        self.data = data
-        self.width = width
-        self.height = height
-        self.channels = channels
-        self.encoded = bytearray()  # inicializiramo array bajtov
+def qoiHeader(width, height, mode):
+    # Magic - first 4 bytes
+    magic = b'qoif'
 
+    # Width, Height - each 4 bytes (8 bytes)
+    # Channels, Colorspace - each 1 byte (2 bytes)
+    if mode == 'RGB':
+        channels = 3
+        colorspace = 1
+    elif mode == 'RGBA':
+        channels = 4
+        colorspace = 1
 
+    header = magic + int(width).to_bytes(4, 'big') + int(height).to_bytes(4, 'big') + channels.to_bytes(1, 'big') + colorspace.to_bytes(1, 'big')
+    return header
 
-    def encode(self):
-        """
-        the data, we want to encode with QOI algorithm,
-        the width and the height of the image, so we know the size of the pictrue,
-        number of colour channels (3 or 4)
-        """
+def qoiHash(pixel):
+    return (pixel[0] * 3 + pixel[1] * 5 + pixel[2] * 7 + pixel[3] * 11) % 64
 
-        """constructing the header based on QOI specifications, we create initial segment of a QOI image file with neceseary info about the image"""
-        self.encoded.extend(b'qoif')        # magic identifier for QOI identifier, a signature that signals the file is QOI image, helps when reading the file to indentify
-        self.encoded.extend(self.width.to_bytes(4, 'big'))      # converts thewidth of the image to 4 byte representation and appends it
-        self.encoded.extend(self.height.to_bytes(4, 'big'))     # converts the heigth of the image into 4 byte represenattion and appends it
-        self.encoded.extend(self.channels.to_bytes(1, 'big'))   # converts the number of channels in the image into a single byte and appends it
-        self.encoded.extend(b'\x00')    # appends the byte for the colour space, 0x00 represents default RGB space 
+def encode_qoi(image_path, output_path):
+    # Load image
+    image = Image.open(image_path)
+    width, height = image.size
+    mode = image.mode
+    pixels = list(image.getdata())
 
-        previous_pixel = [0, 0, 0, 255] if self.channels == 4 else [0, 0, 0]
-        run_length = 0
+    # Prepare header and end marker
+    qoi_header = qoiHeader(width, height, mode)
+    qoi_end_marker = b'\x00\x00\x00\x00\x00\x00\x00\x01'
 
-        for i in range(0, len(self.data), self.channels):
-            pixel = self.data[i:i + self.channels]
-            if pixel == previous_pixel:
-                run_length += 1
-                if run_length == 62:  # Max run length for QOI_OP_RUN
-                    self.encoded.append(0b11000000 | (run_length - 1))
-                    run_length = 0
+    array = [[0, 0, 0, 0]] * 64
+    pxOld = [0, 0, 0, 255]
+    run_length = 0
+    pixelEncoded = bytearray()
+    pixel_count = len(pixels)
+
+    # Operation codes
+    QOI_OP_RUN = 0b11000000
+    QOI_OP_INDEX = 0b00000000
+    QOI_OP_DIFF = 0b01000000
+    QOI_OP_LUMA = 0b10000000
+    QOI_OP_RGB = 0b11111110
+    QOI_OP_RGBA = 0b11111111
+
+    # Encoding
+    for i in range(pixel_count):
+        px = list(pixels[i])
+        if mode == 'RGB':
+            px.append(255)
+
+        if px == pxOld:
+            run_length += 1
+            if run_length == 62 or i == (pixel_count - 1):
+                pixelEncoded.append(QOI_OP_RUN | (run_length - 1))
+                run_length = 0
+        else:
+            if run_length > 0:
+                pixelEncoded.append(QOI_OP_RUN | (run_length - 1))
+                run_length = 0
+
+            index_pos = qoiHash(px)
+
+            if array[index_pos] == px:
+                pixelEncoded.append(QOI_OP_INDEX | index_pos)
             else:
-                if run_length > 0:
-                    self.encoded.append(0b11000000 | (run_length - 1))
-                    run_length = 0
+                array[index_pos] = px
+                vr = px[0] - pxOld[0]
+                vg = px[1] - pxOld[1]
+                vb = px[2] - pxOld[2]
+                va = px[3] - pxOld[3]
+                vr_vg = vr - vg
+                vb_vg = vb - vg
 
-                if self.channels == 4:
-                    self.encoded.extend([0b11111110] + pixel)  # QOI_OP_RGBA
+                if -2 <= vr <= 1 and -2 <= vg <= 1 and -2 <= vb <= 1 and va == 0:
+                    pixelEncoded.append(QOI_OP_DIFF | ((vr + 2) << 4) | ((vg + 2) << 2) | (vb + 2))
+                elif -32 <= vg <= 31 and -8 <= vr_vg <= 7 and -8 <= vb_vg <= 7 and va == 0:
+                    pixelEncoded.append(QOI_OP_LUMA | (vg + 32))
+                    pixelEncoded.append(((vr_vg + 8) << 4) | (vb_vg + 8))
                 else:
-                    self.encoded.extend([0b11111110] + pixel[:3])  # QOI_OP_RGB
+                    if va == 0:
+                        pixelEncoded.append(QOI_OP_RGB)
+                        pixelEncoded.extend(px[:3])
+                    else:
+                        pixelEncoded.append(QOI_OP_RGBA)
+                        pixelEncoded.extend(px)
 
-            previous_pixel = pixel
-        if run_length > 0:
-            self.encoded.append(0b11000000 | (run_length - 1))
+        pxOld = px
 
-    
-    def save_to_file(self, file_path):
-        with open(file_path, "wb") as file:
-            file.write(self.encoded)
+    # Combine header, encoded pixels, and end marker
+    qoi_output = qoi_header + pixelEncoded + qoi_end_marker
 
-def open_image(file_path):
-    "Opens image and converts it into RGB/RGBA format"
-    img = Image.open(file_path)
-    if img.mode not in ["RGB", "RGBA"]:
-        img = img.convert("RGBA")
-    return img
+    # Save to file
+    with open(output_path, 'wb') as file:
+        file.write(qoi_output)
 
-def process_image(file_path, output_path):
-    """Process an image file to QOI format and save it."""
-    img = open_image(file_path)
-    if img is not None:
-        data = list(img.getdata())
-        flat_data = [channel for pixel in data for channel in pixel]  # Flatten the list of tuples
-        encoder = QOIEncoder(flat_data, img.width, img.height, len(img.mode))
-        encoded_image = encoder.encode()
-        encoder.save_to_file(output_path)
-
-input_path = "/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/archive/kodim01.png"
-output_path = "/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/test.png"
-process_image(input_path, output_path)
-
-   
+if __name__ == "__main__":
+    input_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim23.png'
+    output_path = '/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim23_moje.qoi'
+    encode_qoi(input_path, output_path)

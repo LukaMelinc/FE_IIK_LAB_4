@@ -111,7 +111,7 @@ def save_as_png(bufferEnd, width, height, mode, output):
 
 
 # Use the provided QOI image for testing
-with open('/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/qoi_test_images_2/kodim23.qoi', "rb") as file:
+with open('/Users/lukamelinc/Desktop/Faks/MAG_1_letnik/2_semester/Informacije_in_Kodi/LAB/Projekt/kodim23_moje.qoi', "rb") as file:
     encoded_data = file.read()
 
 # Decode the image
